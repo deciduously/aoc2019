@@ -25,6 +25,7 @@ fn sum_fuels(fuels_str: &str, fuel_fn: Box<dyn Fn(i32) -> i32>) -> i32 {
 }
 
 pub fn run() {
+    println!("Day 1");
     println!("{}", sum_fuels(&get_puzzle_string(1), Box::new(fuel)));
     println!(
         "{}",

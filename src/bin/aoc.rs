@@ -1,6 +1,7 @@
 use aoc2019::*;
 
+// TODO specify day via CLI arg
+
 fn main() {
-    println!("Day 1");
-    day1::run();
+    day2::run();
 }
