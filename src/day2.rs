@@ -1,8 +1,9 @@
-use super::{get_puzzle_string, intcode};
+use super::*;
 
 pub fn run() {
     println!("Day 2");
     println!("{}", intcode(&get_puzzle_string(2), true));
+    println!("{}", find_inputs(&get_puzzle_string(2), 19690720));
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ pub mod day1;
 pub mod day2;
 mod intcode;
 
-pub use intcode::intcode;
+pub use intcode::{find_inputs, intcode};
 
 use std::{
     fs::File,
