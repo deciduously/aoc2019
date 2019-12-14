@@ -121,13 +121,13 @@ impl fmt::Display for IntcodeComputer {
     }
 }
 
-pub fn intcode(input: &str, buggy: bool) -> String {
+pub fn intcode(input: &str, buggy: bool) -> (Int, String) {
     let mut computer = IntcodeComputer::new(input);
     if buggy {
         computer.fix_1202bug();
     }
     computer.execute();
-    computer.to_string()
+    (computer.result(), computer.to_string())
 }
 
 pub fn find_inputs(input: &str, target: Int) -> Int {
