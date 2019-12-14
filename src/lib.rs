@@ -1,5 +1,8 @@
 pub mod day1;
 pub mod day2;
+mod intcode;
+
+pub use intcode::intcode;
 
 use std::{
     fs::File,
