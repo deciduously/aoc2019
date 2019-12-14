@@ -10,7 +10,7 @@ mod test {
     use super::*;
     use pretty_assertions::assert_eq;
     #[test]
-    fn test_sample() {
+    fn test_part1() {
         assert_eq!(intcode("1,0,0,0,99", false), "2,0,0,0,99");
         assert_eq!(intcode("2,3,0,3,99", false), "2,3,0,6,99");
         assert_eq!(intcode("2,4,4,5,99,0", false), "2,4,4,5,99,9801");
