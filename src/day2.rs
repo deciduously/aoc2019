@@ -1,7 +1,6 @@
 use super::*;
 
 pub fn run() {
-    println!("Day 2");
     println!("{}", intcode(&get_puzzle_string(2), true).0);
     println!("{}", find_inputs(&get_puzzle_string(2), 19690720));
 }
