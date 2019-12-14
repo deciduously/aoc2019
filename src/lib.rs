@@ -4,7 +4,7 @@ pub mod day1;
 pub mod day2;
 pub mod day3;
 
-pub use intcode::{find_inputs, intcode};
+pub use intcode::{Int, IntcodeComputer};
 
 use std::{
     fs::File,
