@@ -35,10 +35,10 @@ impl IntcodeComputer {
     fn new(input: &str) -> Self {
         let mut ret = Self::default();
         ret.program = input.to_string();
-        ret.reset();
+        ret.init_tape();
         ret
     }
-    fn reset(&mut self) {
+    fn init_tape(&mut self) {
         self.tape = self
             .program
             .split(',')
@@ -46,6 +46,9 @@ impl IntcodeComputer {
             .filter(|res| res.is_ok())
             .map(|res| res.unwrap())
             .collect();
+    }
+    fn reset(&mut self) {
+        self.init_tape();
         self.current_idx = 0;
     }
     fn get_value_at(&self, pos: usize) -> Int {
@@ -134,4 +137,21 @@ pub fn find_inputs(input: &str, target: Int) -> Int {
     let mut computer = IntcodeComputer::new(input);
     let (noun, verb) = computer.locate_target(target);
     100 * noun + verb
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    #[test]
+    fn test_intcode() {
+        assert_eq!(intcode("1,0,0,0,99", false).1, "2,0,0,0,99");
+        assert_eq!(intcode("2,3,0,3,99", false).1, "2,3,0,6,99");
+        assert_eq!(intcode("2,4,4,5,99,0", false).1, "2,4,4,5,99,9801");
+        assert_eq!(intcode("1,1,1,4,99,5,6,0,99", false).1, "30,1,1,4,2,5,6,0,99");
+        assert_eq!(
+            intcode("1,9,10,3,2,3,11,0,99,30,40,50", false).1,
+            "3500,9,10,70,2,3,11,0,99,30,40,50"
+        );
+    }
 }

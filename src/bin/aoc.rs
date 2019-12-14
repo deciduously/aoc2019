@@ -21,6 +21,6 @@ fn main() {
             eprintln!("Day must be a number 1-{}", DAYS_IMPLEMENTED);
         }
     } else {
-        eprintln!("You must select a day to run");
+        eprintln!("You must select a day 1-{} to run", DAYS_IMPLEMENTED);
     }
 }

@@ -58,4 +58,9 @@ mod test {
         let fuels = String::from_str("14\n1969\n100756").unwrap();
         assert_eq!(sum_fuels(&fuels, Box::new(fuel_with_dividends)), 51314);
     }
+    #[test]
+    fn test_solutions() {
+        assert_eq!(sum_fuels(&get_puzzle_string(1), Box::new(fuel)), 3301059);
+        assert_eq!(sum_fuels(&get_puzzle_string(1), Box::new(fuel_with_dividends)), 4948732);
+    }
 }
