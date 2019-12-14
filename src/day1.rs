@@ -36,10 +36,16 @@ fn sum_fuels(fuels_str: &str, fuel_fn: Box<dyn Fn(i32) -> i32>) -> i32 {
 }
 
 pub fn run() {
-    println!("{}", sum_fuels(&get_puzzle_string(1), Box::new(fuel)));
     println!(
         "{}",
-        sum_fuels(&get_puzzle_string(1), Box::new(fuel_with_dividends))
+        sum_fuels(&get_puzzle_string(1).unwrap(), Box::new(fuel))
+    );
+    println!(
+        "{}",
+        sum_fuels(
+            &get_puzzle_string(1).unwrap(),
+            Box::new(fuel_with_dividends)
+        )
     );
 }
 
@@ -60,7 +66,16 @@ mod test {
     }
     #[test]
     fn test_solutions() {
-        assert_eq!(sum_fuels(&get_puzzle_string(1), Box::new(fuel)), 3301059);
-        assert_eq!(sum_fuels(&get_puzzle_string(1), Box::new(fuel_with_dividends)), 4948732);
+        assert_eq!(
+            sum_fuels(&get_puzzle_string(1).unwrap(), Box::new(fuel)),
+            3301059
+        );
+        assert_eq!(
+            sum_fuels(
+                &get_puzzle_string(1).unwrap(),
+                Box::new(fuel_with_dividends)
+            ),
+            4948732
+        );
     }
 }

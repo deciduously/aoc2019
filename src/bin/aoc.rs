@@ -12,7 +12,7 @@ fn main() {
                     1 => day1::run(),
                     2 => day2::run(),
                     3 => day3::run(),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             } else {
                 eprintln!("Day must be between 1 and {} inclusive", DAYS_IMPLEMENTED);
