@@ -4,6 +4,17 @@ fn fuel(n: i32) -> i32 {
     (n as f64 / 3.0).floor() as i32 - 2
 }
 
+// Almost identical to @marisalynn's python...
+// def all_the_fuel(mass):
+//     dividend_fuel = fuel(mass)
+//     return_fuel = dividend_fuel
+//     while True:
+//         dividend_fuel = fuel(dividend_fuel)
+//         if dividend_fuel < 0:
+//             break
+//         return_fuel += dividend_fuel
+//     return return_fuel
+
 fn fuel_with_dividends(n: i32) -> i32 {
     let mut dividend = fuel(n);
     let mut ret = dividend;
