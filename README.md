@@ -6,5 +6,4 @@ Usage `./aoc [DAY]`:
 
 ```
 $ cargo run -- 1
-# cargo run -- 2
 ```

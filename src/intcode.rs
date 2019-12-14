@@ -93,19 +93,20 @@ impl IntcodeComputer {
         self.tape[2] = verb;
     }
     fn locate_target(&mut self, target: Int) -> (Int, Int) {
-        let mut result;
         for noun in 0..=MAX_INPUT {
             for verb in 0..=MAX_INPUT {
                 self.reset();
                 self.enter_inputs(noun, verb);
                 self.execute();
-                result = self.get_value_at(0);
-                if result == target {
+                if self.result() == target {
                     return (noun, verb);
                 }
             }
         }
         panic!("Tried all possible int pairs - no match");
+    }
+    fn result(&self) -> Int {
+        self.get_value_at(0)
     }
 }
 
