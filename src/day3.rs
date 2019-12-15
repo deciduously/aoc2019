@@ -386,4 +386,10 @@ mod test {
             Some(159)
         );
     }
+    #[test]
+    fn test_solutions() {
+        assert_eq!(closest_intersection_distance(&get_puzzle_string(3).unwrap())
+        .unwrap()
+        .unwrap(), 248);
+    }
 }
