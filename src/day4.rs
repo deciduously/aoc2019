@@ -115,6 +115,7 @@ mod test {
     #[test]
     fn test_solutions() {
         // Maybe omit - this runs really fast in release mode but slow in test
-        assert_eq!(IdRange::from_str(PUZZLE).unwrap().total_inputs(false), 921)
+        assert_eq!(IdRange::from_str(PUZZLE).unwrap().total_inputs(false), 921);
+        assert_eq!(IdRange::from_str(PUZZLE).unwrap().total_inputs(true), 603);
     }
 }
