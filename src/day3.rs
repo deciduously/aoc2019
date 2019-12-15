@@ -1,12 +1,9 @@
 use super::get_puzzle_string;
 use std::{
-    collections::HashMap,
     io::{self, ErrorKind::*},
     ops::AddAssign,
     str::FromStr,
 };
-
-type WireID = usize; // Nodes just keep track of which wires have crossed them
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Direction {
@@ -48,10 +45,10 @@ impl FromStr for Step {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-struct Position(i16, i16);
+struct Position(i32, i32);
 
 impl Position {
-    fn manhattan_distance(self, other: Position) -> i16 {
+    fn manhattan_distance(self, other: Position) -> i32 {
         (self.0 - other.0).abs() + (self.1 - other.1).abs()
     }
 }
@@ -108,7 +105,7 @@ impl Line {
             let x = (b2 * c1 - b1 * c2) / determinant;
             let y = (a1 * c2 - a2 * c1) / determinant;
             if x.fract() == 0.0 && y.fract() == 0.0 {
-                Some(Position(x.floor() as i16, y.floor() as i16))
+                Some(Position(x.floor() as i32, y.floor() as i32))
             } else {
                 None
             }
@@ -140,7 +137,7 @@ impl AddAssign<Direction> for Position {
 impl AddAssign<Step> for Position {
     fn add_assign(&mut self, rhs: Step) {
         use Direction::*;
-        let offset = rhs.length as i16;
+        let offset = rhs.length as i32;
         match rhs.direction {
             Down => {
                 self.1 -= offset;
@@ -174,63 +171,61 @@ impl FromStr for WirePath {
     }
 }
 
+impl WirePath {
+    fn get_lines(&self) -> Vec<Line> {
+        let mut origin = Position::default();
+        let mut destination = origin;
+        let mut ret = Vec::new();
+        for step in &self.0 {
+            // set destination
+            destination += *step;
+            // add line
+            ret.push(Line(origin, destination));
+            // reset origin
+            origin = destination;
+        }
+        ret
+    }
+}
+
 #[derive(Default)]
 struct Grid {
-    nodes: HashMap<Position, Vec<WireID>>,
-    current_pos: Position,
-    current_wire: WireID,
     wires: Vec<WirePath>,
 }
 
 impl Grid {
-    fn lay_path(&mut self, path: WirePath) {
-        // Start at origin
-        self.current_pos = Position::default();
-        // Lay each step in the path
-        path.0.iter().for_each(|step| {
-            self.lay_step(*step);
-        });
-        // Increment wire
-        self.current_wire += 1;
-    }
-    fn lay_step(&mut self, step: Step) {
-        // Just lay the step!
-        self.current_pos += step;
-        self.lay_wire(self.current_pos);
-    }
-    fn lay_wire(&mut self, pos: Position) {
-        let node = self.nodes.entry(pos).or_insert_with(|| vec![0]);
-        node.push(self.current_wire);
-    }
     fn get_intersections(&self) -> Vec<Position> {
         // Get all the lines between nodes
-        let mut lines = Vec::new();
-        // All the pairs within a path
+        let mut path_lines = Vec::new();
         for wire in &self.wires {
-            let mut current_pos = Position::default();
-            wire.0.iter().for_each(|&step| {
-                let mut new_pos = current_pos;
-                new_pos += step;
-                lines.push(Line(current_pos, new_pos));
-                current_pos += step;
-            });
+            path_lines.push(wire.get_lines());
         }
-        println!("Lines: {:?}", lines);
         // Find any points where they cross
-        let mut ret = lines.iter().fold(vec![], |mut acc, el| {
-            // check each line against all other lines
-            for other in &lines {
-                if let Some(p) = el.intersection(*other) {
-                    // check if that point actually falls on the lines
-                    // TODO too many points are picked up
-                    if other.contains(p) || el.contains(p) {
-                        acc.push(p);
+        // for each vec in lines, check against each other vec
+
+        let mut ret = Vec::new();
+        for current_path_idx in 0..path_lines.len() {
+            let current_path = &path_lines[current_path_idx];
+            for other_path_idx in 0..path_lines.len() {
+                if current_path_idx == other_path_idx {
+                    // Only check against other paths, not lines in same wire
+                    continue;
+                } else {
+                    // Check each line in path against each line in each other path
+                    let other_path = &path_lines[other_path_idx];
+                    for line in current_path {
+                        for other_line in other_path {
+                            if let Some(intersection) = line.intersection(*other_line) {
+                                if line.contains(intersection) && other_line.contains(intersection)
+                                {
+                                    ret.push(intersection);
+                                }
+                            }
+                        }
                     }
                 }
             }
-            acc
-        });
-        ret.dedup();
+        }
         ret
     }
     fn get_closest_intersection_distance(&self) -> Option<u32> {
@@ -238,7 +233,6 @@ impl Grid {
         // collect distance from origin of any that have more than one wire
         self.get_intersections().iter().fold(None, |acc, el| {
             let distance = Position::default().manhattan_distance(*el) as u32;
-            println!("Intersection: {:?} | distance {}", el, distance);
             if distance > 0 {
                 match acc {
                     None => Some(distance),
@@ -257,10 +251,7 @@ impl FromStr for Grid {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ret = Self::default();
         for path in s.split('\n') {
-            let path = WirePath::from_str(path)?;
-            // TODO probably can avoid the clone
-            ret.wires.push(path.clone());
-            ret.lay_path(path);
+            ret.wires.push(WirePath::from_str(path)?);
         }
         Ok(ret)
     }
@@ -309,6 +300,18 @@ mod test {
         assert_eq!(
             Position::default().manhattan_distance(Position(3, 2).into()),
             5
+        );
+    }
+    #[test]
+    fn test_lines_from_wirepath() {
+        assert_eq!(
+            WirePath::from_str("R8,U5,L5,D3").unwrap().get_lines(),
+            vec![
+                Line(Position(0, 0), Position(8, 0)),
+                Line(Position(8, 0), Position(8, 5)),
+                Line(Position(8, 5), Position(3, 5)),
+                Line(Position(3, 5), Position(3, 2)),
+            ]
         );
     }
     #[test]
