@@ -284,9 +284,7 @@ impl Grid {
                 None => len,
                 Some(x) => match len {
                     None => acc,
-                    Some(y) => {
-                        Some(x.min(y))
-                    }
+                    Some(y) => Some(x.min(y)),
                 },
             }
         })
