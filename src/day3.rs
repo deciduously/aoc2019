@@ -129,27 +129,6 @@ impl Line {
     }
 }
 
-// Just steps by one in the given direction
-impl AddAssign<Direction> for Position {
-    fn add_assign(&mut self, rhs: Direction) {
-        use Direction::*;
-        match rhs {
-            Down => {
-                self.1 -= 1;
-            }
-            Left => {
-                self.0 -= 1;
-            }
-            Right => {
-                self.0 += 1;
-            }
-            Up => {
-                self.1 += 1;
-            }
-        }
-    }
-}
-
 impl AddAssign<Step> for Position {
     fn add_assign(&mut self, rhs: Step) {
         use Direction::*;
