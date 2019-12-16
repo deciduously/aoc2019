@@ -1,13 +1,14 @@
-use std::fmt;
+use std::{fmt, io};
 pub type Int = i64;
 
-const VALS_PER_OPCODE: usize = 4;
 const MAX_INPUT: Int = 99;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Opcode {
     Add(Int, Int, Int),
+    Input(Int),
     Multiply(Int, Int, Int),
+    Output(Int),
     Terminate,
     Unknown,
 }
@@ -22,9 +23,20 @@ impl Opcode {
             match ints[0] {
                 1 => Add(ints[1], ints[2], ints[3]),
                 2 => Multiply(ints[1], ints[2], ints[3]),
+                3 => Input(ints[1]),
+                4 => Output(ints[2]),
                 99 => Terminate,
                 _ => Unknown,
             }
+        }
+    }
+    fn instruction_len(&self) -> usize {
+        use Opcode::*;
+        match self {
+            Add(_, _, _) | Multiply(_, _, _) => 4,
+            Input(_) | Output(_) => 2,
+            Terminate => 1,
+            Unknown => 0,
         }
     }
 }
@@ -70,18 +82,29 @@ impl IntcodeComputer {
                         dest as usize,
                         self.get_value_at(lhs as usize) + self.get_value_at(rhs as usize),
                     );
-                    self.current_idx += VALS_PER_OPCODE;
                 }
                 Multiply(lhs, rhs, dest) => {
                     self.set_value_at(
                         dest as usize,
                         self.get_value_at(lhs as usize) * self.get_value_at(rhs as usize),
                     );
-                    self.current_idx += VALS_PER_OPCODE;
+                }
+                Input(pos) => {
+                    let stdin = io::stdin();
+                    print!("Enter value> ");
+                    let mut input = String::new();
+                    match stdin.read_line(&mut input) {
+                        Ok(_) => self.set_value_at(pos as usize, input.parse::<Int>().unwrap()),
+                        Err(_) => panic!("Error inputting!")
+                    }
+                }
+                Output(pos) => {
+                    print!("{}", self.get_value_at(pos as usize));
                 }
                 Terminate => running = false,
                 Unknown => panic!("Expected opcode!!!"),
             }
+            self.current_idx += opcode.instruction_len();
         }
     }
     pub fn locate_target(&mut self, target: Int) -> (Int, Int) {
@@ -109,7 +132,13 @@ impl IntcodeComputer {
         if self.get_value_at(self.current_idx) == 99 {
             Opcode::Terminate
         } else {
-            for i in 0..VALS_PER_OPCODE {
+            let opcode_len = match self.get_value_at(self.current_idx) {
+                1 | 2 => 4,
+                3 | 4 => 2,
+                99 => 1,
+                _ => 0,
+            };
+            for i in 0..opcode_len {
                 ret.push(self.get_value_at(self.current_idx + i));
             }
             Opcode::new(&ret)
