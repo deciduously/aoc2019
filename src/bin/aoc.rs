@@ -1,7 +1,7 @@
 use aoc2019::*;
 use std::env::args;
 
-const DAYS_IMPLEMENTED: u32 = 4;
+const DAYS_IMPLEMENTED: u32 = 5;
 
 // TODO time the runs and display results
 
@@ -15,6 +15,7 @@ fn main() {
                     2 => day2::run(),
                     3 => day3::run(),
                     4 => day4::run(),
+                    5 => day5::run(),
                     _ => unreachable!(),
                 }
             } else {
