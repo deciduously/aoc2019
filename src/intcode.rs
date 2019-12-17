@@ -37,7 +37,7 @@ impl OpcodeVariant {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct Parameter {
     value: Int,
     mode: ParameterMode,
@@ -116,24 +116,19 @@ impl IntcodeComputer {
             use OpcodeVariant::*;
             match opcode.variant {
                 Add => {
-                    let lhs = &opcode.parameters[0];
-                    let rhs = &opcode.parameters[1];
-                    let dest = &opcode.parameters[2];
-                    self.set_value_at(
-                        dest.value as usize,
-                        self.get_value_at(lhs.value as usize)
-                            + self.get_value_at(rhs.value as usize),
-                    );
+                    println!("{:?}", opcode);
+                    let lhs = self.read_parameter(opcode.parameters[0]);
+                    let rhs = self.read_parameter(opcode.parameters[1]);
+                    // dest is ALWAYS immediate??
+                    let dest = opcode.parameters[2].value;
+                    println!("Adding {} + {} store to {}", lhs, rhs, dest);
+                    self.set_value_at(dest as usize, lhs + rhs);
                 }
                 Multiply => {
-                    let lhs = &opcode.parameters[0];
-                    let rhs = &opcode.parameters[1];
-                    let dest = &opcode.parameters[2];
-                    self.set_value_at(
-                        dest.value as usize,
-                        self.get_value_at(lhs.value as usize)
-                            * self.get_value_at(rhs.value as usize),
-                    );
+                    let lhs = self.read_parameter(opcode.parameters[0]);
+                    let rhs = self.read_parameter(opcode.parameters[1]);
+                    let dest = opcode.parameters[2].value;
+                    self.set_value_at(dest as usize, lhs * rhs);
                 }
                 Input => {
                     let stdin = io::stdin();
@@ -141,14 +136,14 @@ impl IntcodeComputer {
                     let mut input = String::new();
                     match stdin.read_line(&mut input) {
                         Ok(_) => self.set_value_at(
-                            opcode.parameters[0].value as usize,
+                            self.read_parameter(opcode.parameters[0]) as usize,
                             input.parse::<Int>().unwrap(),
                         ),
                         Err(_) => panic!("Error inputting!"),
                     }
                 }
                 Output => {
-                    print!("{}", self.get_value_at(opcode.parameters[0].value as usize));
+                    print!("{}", self.read_parameter(opcode.parameters[0]) as usize);
                 }
                 Terminate => running = false,
             }
@@ -196,6 +191,13 @@ impl IntcodeComputer {
     }
     fn get_value_at(&self, pos: usize) -> Int {
         self.tape[pos]
+    }
+    fn read_parameter(&self, p: Parameter) -> Int {
+        use ParameterMode::*;
+        match p.mode {
+            Position => self.get_value_at(p.value as usize),
+            Immediate => p.value,
+        }
     }
     fn init_tape(&mut self) {
         self.tape = self
@@ -256,6 +258,6 @@ mod test {
     }
     #[test]
     fn test_v1_day5() {
-        // assert_eq!(intcode("1002,4,3,4,33"))
+        assert_eq!(intcode("1002,4,3,4,33", false).1, "1002,4,3,99,99");
     }
 }
