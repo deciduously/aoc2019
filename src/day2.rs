@@ -3,7 +3,7 @@ use crate::intcode::intcode;
 
 pub fn find_inputs(input: &str, target: Int) -> Int {
     let mut computer = IntcodeComputer::new(input);
-    let (noun, verb) = computer.locate_target(target);
+    let (noun, verb) = computer.locate_target(target).unwrap();
     100 * noun + verb
 }
 

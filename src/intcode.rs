@@ -18,7 +18,7 @@ enum OpcodeVariant {
 impl OpcodeVariant {
     fn new(i: Int) -> Result<Self, io::Error> {
         use OpcodeVariant::*;
-        match i {
+        match i % 100 {
             1 => Ok(Add),
             2 => Ok(Multiply),
             3 => Ok(Input),
@@ -59,27 +59,11 @@ struct Opcode {
 }
 
 impl Opcode {
-    fn new(tape: &[Int]) -> Result<Self, io::Error> {
-        let mut iter = tape.iter();
-        // Store opcode variante - ones and tens digit
-        let opcode = *iter.next().unwrap();
-        let variant = OpcodeVariant::new(opcode % 100)?;
-        // Parse modes and store parameters
-        let mut modes = (opcode as f64 / 100.0).floor() as isize;
-        let mut parameters = Vec::new();
-        loop {
-            let mode = modes % 10;
-            parameters.push(Parameter::new(*iter.next().unwrap(), mode)?);
-            if modes >= 10 {
-                modes = (modes as f64 / 10.0).floor() as isize;
-            } else {
-                break;
-            }
-        }
-        Ok(Self {
+    fn new(variant: OpcodeVariant, parameters: Vec<Parameter>) -> Self {
+        Self {
             variant,
             parameters,
-        })
+        }
     }
 }
 
@@ -124,10 +108,11 @@ impl IntcodeComputer {
     pub fn fix_1202bug(&mut self) {
         self.enter_inputs(12, 2);
     }
-    pub fn execute(&mut self) {
+    pub fn execute(&mut self) -> Result<(), io::Error> {
         let mut running = true;
         while running {
-            let opcode = self.get_opcode();
+            let opcode = self.get_opcode()?;
+            println!("Opcode: {:?}", opcode);
             use OpcodeVariant::*;
             match opcode.variant {
                 Add => {
@@ -169,15 +154,16 @@ impl IntcodeComputer {
             }
             self.current_idx += opcode.variant.instruction_len();
         }
+        Ok(())
     }
-    pub fn locate_target(&mut self, target: Int) -> (Int, Int) {
+    pub fn locate_target(&mut self, target: Int) -> Result<(Int, Int), io::Error> {
         for noun in 0..=MAX_INPUT {
             for verb in 0..=MAX_INPUT {
                 self.reset();
                 self.enter_inputs(noun, verb);
-                self.execute();
+                self.execute()?;
                 if self.result() == target {
-                    return (noun, verb);
+                    return Ok((noun, verb));
                 }
             }
         }
@@ -190,9 +176,23 @@ impl IntcodeComputer {
         self.tape[1] = noun;
         self.tape[2] = verb;
     }
-    fn get_opcode(&self) -> Opcode {
-        // TODO how to grab proper slice?
-        Opcode::new(&self.tape[self.current_idx..4]).unwrap()
+    fn get_opcode(&self) -> Result<Opcode, io::Error> {
+        // Get variant
+        let mut opcode_int = self.tape[self.current_idx];
+        let variant = OpcodeVariant::new(opcode_int)?;
+        let code_len = variant.instruction_len();
+
+        // Get parameters with modes
+        opcode_int = (opcode_int as f64 / 100.0).floor() as Int;
+        let mut parameters = Vec::new();
+        for i in 1..code_len {
+            parameters.push(Parameter::new(
+                self.tape[self.current_idx + i],
+                opcode_int % 10,
+            )?);
+            opcode_int = (opcode_int as f64 / 100.0).floor() as Int;
+        }
+        Ok(Opcode::new(variant, parameters))
     }
     fn get_value_at(&self, pos: usize) -> Int {
         self.tape[pos]
@@ -231,7 +231,7 @@ pub fn intcode(input: &str, buggy: bool) -> (Int, String) {
     if buggy {
         computer.fix_1202bug();
     }
-    computer.execute();
+    computer.execute().unwrap();
     (computer.result(), computer.to_string())
 }
 
