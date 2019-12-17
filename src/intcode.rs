@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    io::{self, ErrorKind::*},
+    io::{self, ErrorKind::*, Write},
 };
 pub type Int = isize;
 
@@ -41,6 +41,29 @@ impl OpcodeVariant {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+enum ParameterMode {
+    Position = 0,
+    Immediate = 1,
+}
+
+impl ParameterMode {
+    fn new(i: Int) -> Result<Self, io::Error> {
+        use ParameterMode::*;
+        match i {
+            0 => Ok(Position),
+            1 => Ok(Immediate),
+            _ => Err(io::Error::new(InvalidInput, "Unknown parameter mode")),
+        }
+    }
+}
+
+impl Default for ParameterMode {
+    fn default() -> Self {
+        ParameterMode::Position
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct Parameter {
     value: Int,
     mode: ParameterMode,
@@ -67,29 +90,6 @@ impl Opcode {
             variant,
             parameters,
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ParameterMode {
-    Position = 0,
-    Immediate = 1,
-}
-
-impl ParameterMode {
-    fn new(i: Int) -> Result<Self, io::Error> {
-        use ParameterMode::*;
-        match i {
-            0 => Ok(Position),
-            1 => Ok(Immediate),
-            _ => Err(io::Error::new(InvalidInput, "Unknown parameter mode")),
-        }
-    }
-}
-
-impl Default for ParameterMode {
-    fn default() -> Self {
-        ParameterMode::Position
     }
 }
 
@@ -132,15 +132,18 @@ impl IntcodeComputer {
                 }
                 Input => {
                     print!("Enter value> ");
+                    io::stdout().flush()?;
                     let mut input = String::new();
                     io::stdin().read_line(&mut input)?;
+                    let dest = input.trim().parse::<Int>().expect("Could not parse input");
                     self.set_value_at(
-                        self.read_parameter(opcode.parameters[0]) as usize,
-                        input.trim().parse::<Int>().unwrap(),
+                        opcode.parameters[0].value as usize, // TODO destiantions are weird, see line 124
+                        dest,
                     );
                 }
                 Output => {
-                    print!("{}", self.read_parameter(opcode.parameters[0]) as usize);
+                    println!("{}", self.read_parameter(opcode.parameters[0]));
+                    io::stdout().flush()?;
                 }
                 Terminate => running = false,
             }
@@ -258,5 +261,6 @@ mod test {
     #[test]
     fn test_v1_day5() {
         assert_eq!(intcode("1002,4,3,4,33", false).1, "1002,4,3,4,99");
+        assert_eq!(intcode("1101,100,-1,4,0", false).1, "1101,100,-1,4,99");
     }
 }
