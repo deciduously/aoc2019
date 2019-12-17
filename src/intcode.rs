@@ -1,23 +1,10 @@
-use std::{fmt, io};
+use std::{
+    fmt,
+    io::{self, ErrorKind::*},
+};
 pub type Int = isize;
 
 const MAX_INPUT: Int = 99;
-// NOPE
-// OpCodeType - flat variant, map to num
-
-// OpCode
-
-// impl From<Int> for OpCode
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum OpcodeS {
-    Add(Int, Int, Int),
-    Input(Int),
-    Multiply(Int, Int, Int),
-    Output(Int),
-    Terminate,
-    Unknown,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum OpcodeVariant {
@@ -29,13 +16,23 @@ enum OpcodeVariant {
 }
 
 impl OpcodeVariant {
+    fn new(i: Int) -> Result<Self, io::Error> {
+        use OpcodeVariant::*;
+        match i {
+            1 => Ok(Add),
+            2 => Ok(Multiply),
+            3 => Ok(Input),
+            4 => Ok(Output),
+            99 => Ok(Terminate),
+            _ => Err(io::Error::new(InvalidInput, "Unknown opcode variant")),
+        }
+    }
     fn instruction_len(self) -> usize {
         use OpcodeVariant::*;
         match self {
             Add | Multiply => 4,
             Input | Output => 2,
             Terminate => 1,
-            _ => 0,
         }
     }
 }
@@ -46,6 +43,15 @@ struct Parameter {
     mode: ParameterMode,
 }
 
+impl Parameter {
+    fn new(value: Int, mode: Int) -> Result<Self, io::Error> {
+        Ok(Self {
+            value,
+            mode: ParameterMode::new(mode)?,
+        })
+    }
+}
+
 #[derive(Debug)]
 struct Opcode {
     variant: OpcodeVariant,
@@ -54,57 +60,26 @@ struct Opcode {
 
 impl Opcode {
     fn new(tape: &[Int]) -> Result<Self, io::Error> {
-        // select first one
-        // is it an opcode?
-
-        // Go by ones digits
-        // so, 0-99 are potential Opcodes
-        // if i < 100, check for parameter modes
-        // hundreds is mode of first
-        // thousands is mode of second
-        // ten thousands is mode of third -0- omitted because zero
-        // default to ParameterMode::default()
-        let mut curr = int;
-        let opcode = tape[0];
-        let variant = OpcodeVariant::from(opcode);
+        let mut iter = tape.iter();
+        // Store opcode variante - ones and tens digit
+        let opcode = *iter.next().unwrap();
+        let variant = OpcodeVariant::new(opcode % 100)?;
+        // Parse modes and store parameters
+        let mut modes = (opcode as f64 / 100.0).floor() as isize;
         let mut parameters = Vec::new();
-        while curr > 100 {
-            if curr
-        }
-        // At the end it's the opcode
-        Self {
-            variant: OpcodeVariant::from(curr),
-
-        }
-    }
-}
-
-impl Opcode {
-    // expects 1 or more Ints, returns an Opcode
-    fn new(ints: &[Int]) -> Self {
-        if ints.is_empty() {
-            panic!("Opcode::new() passed an empty slice!")
-        } else {
-            use Opcode::*;
-            // TODO validate by opcode_instruction_length?
-            match ints[0] {
-                1 => Add(ints[1], ints[2], ints[3]),
-                2 => Multiply(ints[1], ints[2], ints[3]),
-                3 => Input(ints[1]),
-                4 => Output(ints[2]),
-                99 => Terminate,
-                _ => Unknown,
+        loop {
+            let mode = modes % 10;
+            parameters.push(Parameter::new(*iter.next().unwrap(), mode)?);
+            if modes >= 10 {
+                modes = (modes as f64 / 10.0).floor() as isize;
+            } else {
+                break;
             }
         }
-    }
-    fn instruction_len(&self) -> usize {
-        use Opcode::*;
-        match self {
-            Add(_, _, _) | Multiply(_, _, _) => 4,
-            Input(_) | Output(_) => 2,
-            Terminate => 1,
-            Unknown => 0,
-        }
+        Ok(Self {
+            variant,
+            parameters,
+        })
     }
 }
 
@@ -112,6 +87,17 @@ impl Opcode {
 enum ParameterMode {
     Position = 0,
     Immediate = 1,
+}
+
+impl ParameterMode {
+    fn new(i: Int) -> Result<Self, io::Error> {
+        use ParameterMode::*;
+        match i {
+            0 => Ok(Position),
+            1 => Ok(Immediate),
+            _ => Err(io::Error::new(InvalidInput, "Unknown parameter mode")),
+        }
+    }
 }
 
 impl Default for ParameterMode {
@@ -142,36 +128,46 @@ impl IntcodeComputer {
         let mut running = true;
         while running {
             let opcode = self.get_opcode();
-            use Opcode::*;
-            match opcode {
-                Add(lhs, rhs, dest) => {
+            use OpcodeVariant::*;
+            match opcode.variant {
+                Add => {
+                    let lhs = &opcode.parameters[0];
+                    let rhs = &opcode.parameters[1];
+                    let dest = &opcode.parameters[2];
                     self.set_value_at(
-                        dest as usize,
-                        self.get_value_at(lhs as usize) + self.get_value_at(rhs as usize),
+                        dest.value as usize,
+                        self.get_value_at(lhs.value as usize)
+                            + self.get_value_at(rhs.value as usize),
                     );
                 }
-                Multiply(lhs, rhs, dest) => {
+                Multiply => {
+                    let lhs = &opcode.parameters[0];
+                    let rhs = &opcode.parameters[1];
+                    let dest = &opcode.parameters[2];
                     self.set_value_at(
-                        dest as usize,
-                        self.get_value_at(lhs as usize) * self.get_value_at(rhs as usize),
+                        dest.value as usize,
+                        self.get_value_at(lhs.value as usize)
+                            * self.get_value_at(rhs.value as usize),
                     );
                 }
-                Input(pos) => {
+                Input => {
                     let stdin = io::stdin();
                     print!("Enter value> ");
                     let mut input = String::new();
                     match stdin.read_line(&mut input) {
-                        Ok(_) => self.set_value_at(pos as usize, input.parse::<Int>().unwrap()),
-                        Err(_) => panic!("Error inputting!")
+                        Ok(_) => self.set_value_at(
+                            opcode.parameters[0].value as usize,
+                            input.parse::<Int>().unwrap(),
+                        ),
+                        Err(_) => panic!("Error inputting!"),
                     }
                 }
-                Output(pos) => {
-                    print!("{}", self.get_value_at(pos as usize));
+                Output => {
+                    print!("{}", self.get_value_at(opcode.parameters[0].value as usize));
                 }
                 Terminate => running = false,
-                Unknown => panic!("Expected opcode!!!"),
             }
-            self.current_idx += opcode.instruction_len();
+            self.current_idx += opcode.variant.instruction_len();
         }
     }
     pub fn locate_target(&mut self, target: Int) -> (Int, Int) {
@@ -195,16 +191,8 @@ impl IntcodeComputer {
         self.tape[2] = verb;
     }
     fn get_opcode(&self) -> Opcode {
-        let mut ret = Vec::new();
-        if self.get_value_at(self.current_idx) == 99 {
-            Opcode::Terminate
-        } else {
-            let opcode_len = Opcode::opcode_instruction_len(self.get_value_at(self.current_idx));
-            for i in 0..opcode_len {
-                ret.push(self.get_value_at(self.current_idx + i));
-            }
-            Opcode::new(&ret)
-        }
+        // TODO how to grab proper slice?
+        Opcode::new(&self.tape[self.current_idx..4]).unwrap()
     }
     fn get_value_at(&self, pos: usize) -> Int {
         self.tape[pos]

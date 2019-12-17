@@ -3,8 +3,6 @@ use std::env::args;
 
 const DAYS_IMPLEMENTED: u32 = 5;
 
-// TODO time the runs and display results
-
 fn main() {
     if let Some(day) = args().nth(1) {
         if let Ok(day) = day.parse::<u32>() {
