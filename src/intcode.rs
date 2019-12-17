@@ -24,7 +24,10 @@ impl OpcodeVariant {
             3 => Ok(Input),
             4 => Ok(Output),
             99 => Ok(Terminate),
-            _ => Err(io::Error::new(InvalidInput, "Unknown opcode variant")),
+            _ => Err(io::Error::new(
+                InvalidInput,
+                format!("Unknown opcode variant {}", i),
+            )),
         }
     }
     fn instruction_len(self) -> usize {
@@ -112,16 +115,13 @@ impl IntcodeComputer {
         let mut running = true;
         while running {
             let opcode = self.get_opcode()?;
-            println!("Opcode: {:?}", opcode);
             use OpcodeVariant::*;
             match opcode.variant {
                 Add => {
-                    println!("{:?}", opcode);
                     let lhs = self.read_parameter(opcode.parameters[0]);
                     let rhs = self.read_parameter(opcode.parameters[1]);
                     // dest is ALWAYS immediate??
                     let dest = opcode.parameters[2].value;
-                    println!("Adding {} + {} store to {}", lhs, rhs, dest);
                     self.set_value_at(dest as usize, lhs + rhs);
                 }
                 Multiply => {
@@ -131,16 +131,13 @@ impl IntcodeComputer {
                     self.set_value_at(dest as usize, lhs * rhs);
                 }
                 Input => {
-                    let stdin = io::stdin();
                     print!("Enter value> ");
                     let mut input = String::new();
-                    match stdin.read_line(&mut input) {
-                        Ok(_) => self.set_value_at(
-                            self.read_parameter(opcode.parameters[0]) as usize,
-                            input.parse::<Int>().unwrap(),
-                        ),
-                        Err(_) => panic!("Error inputting!"),
-                    }
+                    io::stdin().read_line(&mut input)?;
+                    self.set_value_at(
+                        self.read_parameter(opcode.parameters[0]) as usize,
+                        input.trim().parse::<Int>().unwrap(),
+                    );
                 }
                 Output => {
                     print!("{}", self.read_parameter(opcode.parameters[0]) as usize);
@@ -178,14 +175,16 @@ impl IntcodeComputer {
         let code_len = variant.instruction_len();
 
         // Get parameters with modes
+        // Variant is ones place and tens place
         opcode_int = (opcode_int as f64 / 100.0).floor() as Int;
+        // Remaining place values dictate parameter modes
         let mut parameters = Vec::new();
         for i in 1..code_len {
             parameters.push(Parameter::new(
                 self.tape[self.current_idx + i],
                 opcode_int % 10,
             )?);
-            opcode_int = (opcode_int as f64 / 100.0).floor() as Int;
+            opcode_int = (opcode_int as f64 / 10.0).floor() as Int;
         }
         Ok(Opcode::new(variant, parameters))
     }
@@ -258,6 +257,6 @@ mod test {
     }
     #[test]
     fn test_v1_day5() {
-        assert_eq!(intcode("1002,4,3,4,33", false).1, "1002,4,3,99,99");
+        assert_eq!(intcode("1002,4,3,4,33", false).1, "1002,4,3,4,99");
     }
 }
