@@ -98,14 +98,43 @@ impl OrbitSystem {
             None => 0,
         }
     }
+    fn hops_to_target_parent(&self, idx: usize, target: &str) -> Vec<usize> {
+        let mut results = vec![];
+        for p in &self.object_arena[idx].parents {
+            for res in self.hops_to_target_parent(*p, target) {
+                results.push(res);
+            }
+        }
+        results
+    }
+    fn minimal_orbit_distance(&mut self, from: &str, target: &str) -> Option<usize> {
+        // If it's not in the tree, this will add a new unconnected node
+        // the final function will still return None
+        let start_node = self.node(from);
+        let mut results = vec![];
+
+        // Start traversal
+        let mut trav = &self.object_arena[start_node];
+        // Explore all parents, then hop up one
+        while let Some(inner) = trav.orbits {
+            for res in self.hops_to_target_parent(inner, target) {
+                results.push(res);
+            }
+            trav = &self.object_arena[inner];
+        }
+        results.iter().fold(None, |acc, res| match acc {
+            Some(x) => Some(x.min(*res)),
+            None => Some(*res),
+        })
+    }
 }
 
 pub fn run() {
+    let mut system = OrbitSystem::from_str(&get_puzzle_string(6).unwrap()).unwrap();
     println!(
-        "{}",
-        OrbitSystem::from_str(&get_puzzle_string(6).unwrap())
-            .unwrap()
-            .num_orbits()
+        "{}\n{:?}",
+        system.num_orbits(),
+        system.minimal_orbit_distance("YOU", "SAN")
     );
 }
 
@@ -138,6 +167,17 @@ mod test {
                 .unwrap()
                 .indirect_orbits(),
             31
+        );
+    }
+    #[test]
+    fn test_minimal_orbit_distance() {
+        assert_eq!(
+            OrbitSystem::from_str(
+                "COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L\nK)YOU\nI)SAN"
+            )
+            .unwrap()
+            .minimal_orbit_distance("YOU", "SAN"),
+            Some(4)
         );
     }
     #[test]
