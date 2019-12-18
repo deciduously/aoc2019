@@ -12,6 +12,10 @@ enum OpcodeVariant {
     Multiply = 2,
     Input = 3,
     Output = 4,
+    JumpT = 5,
+    JumpF = 6,
+    LessThan = 7,
+    Equals = 8,
     Terminate = 99,
 }
 
@@ -23,6 +27,10 @@ impl OpcodeVariant {
             2 => Ok(Multiply),
             3 => Ok(Input),
             4 => Ok(Output),
+            5 => Ok(JumpT),
+            6 => Ok(JumpF),
+            7 => Ok(LessThan),
+            8 => Ok(Equals),
             99 => Ok(Terminate),
             _ => Err(io::Error::new(
                 InvalidInput,
@@ -33,7 +41,8 @@ impl OpcodeVariant {
     fn instruction_len(self) -> usize {
         use OpcodeVariant::*;
         match self {
-            Add | Multiply => 4,
+            Add | Multiply | LessThan | Equals => 4,
+            JumpT | JumpF => 3,
             Input | Output => 2,
             Terminate => 1,
         }
@@ -114,13 +123,13 @@ impl IntcodeComputer {
     pub fn execute(&mut self) -> Result<(), io::Error> {
         let mut running = true;
         while running {
+            let mut hop = true;
             let opcode = self.get_opcode()?;
             use OpcodeVariant::*;
             match opcode.variant {
                 Add => {
                     let lhs = self.read_parameter(opcode.parameters[0]);
                     let rhs = self.read_parameter(opcode.parameters[1]);
-                    // dest is ALWAYS immediate??
                     let dest = opcode.parameters[2].value;
                     self.set_value_at(dest as usize, lhs + rhs);
                 }
@@ -137,7 +146,7 @@ impl IntcodeComputer {
                     io::stdin().read_line(&mut input)?;
                     let dest = input.trim().parse::<Int>().expect("Could not parse input");
                     self.set_value_at(
-                        opcode.parameters[0].value as usize, // TODO destiantions are weird, see line 124
+                        opcode.parameters[0].value as usize, // TODO destinations are weird, see line 124
                         dest,
                     );
                 }
@@ -145,9 +154,41 @@ impl IntcodeComputer {
                     println!("{}", self.read_parameter(opcode.parameters[0]));
                     io::stdout().flush()?;
                 }
+                JumpT => {
+                    let check_val = self.read_parameter(opcode.parameters[0]);
+                    let jmp = self.read_parameter(opcode.parameters[1]);
+                    if check_val != 0 {
+                        self.current_idx = jmp as usize;
+                        hop = false;
+                    }
+                }
+                JumpF => {
+                    let check_val = self.read_parameter(opcode.parameters[0]);
+                    let jmp = self.read_parameter(opcode.parameters[1]);
+                    if check_val == 0 {
+                        self.current_idx = jmp as usize;
+                        hop = false;
+                    }
+                }
+                LessThan => {
+                    let lhs = self.read_parameter(opcode.parameters[0]);
+                    let rhs = self.read_parameter(opcode.parameters[1]);
+                    let dest = opcode.parameters[2].value;
+                    let val = if lhs < rhs { 1 } else { 0 };
+                    self.set_value_at(dest as usize, val);
+                }
+                Equals => {
+                    let lhs = self.read_parameter(opcode.parameters[0]);
+                    let rhs = self.read_parameter(opcode.parameters[1]);
+                    let dest = opcode.parameters[2].value;
+                    let val = if lhs == rhs { 1 } else { 0 };
+                    self.set_value_at(dest as usize, val);
+                }
                 Terminate => running = false,
             }
-            self.current_idx += opcode.variant.instruction_len();
+            if hop {
+                self.current_idx += opcode.variant.instruction_len();
+            }
         }
         Ok(())
     }
