@@ -35,14 +35,21 @@ impl FromStr for OrbitSystem {
     type Err = io::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ret = Self::default();
-        let _ = s.split('\n').for_each(|o| ret.insert(o));
+        s.split('\n').for_each(|o| ret.insert(o.trim()));
         println!("{:?}", ret);
         Ok(ret)
     }
 }
 
 impl OrbitSystem {
-    fn new_node(&mut self, name: &str) -> usize {
+    fn node(&mut self, name: &str) -> usize {
+        //first see if it exists
+        for node in &self.object_arena {
+            if node.name == name {
+                return node.idx;
+            }
+        }
+        // Otherwise, add new node
         let idx = self.object_arena.len();
         self.object_arena.push(OrbitObject::new(idx, name));
         idx
@@ -50,25 +57,18 @@ impl OrbitSystem {
     fn insert(&mut self, orbit: &str) {
         // Init nodes
         let split = orbit.split(')').collect::<Vec<&str>>();
-        let outer = split[1];
-        let inner = split[0];
+        // first get node idx
+        let inner = self.node(split[0]);
+        let outer = self.node(split[1]);
 
-        if self.object_arena.is_empty() {
-            // Root node
-            self.new_node(inner);
+        // set orbit
+        match self.object_arena[outer].orbits {
+            Some(_) => panic!("Attempt to overwrite existing orbit"),
+            None => self.object_arena[outer].orbits = Some(inner),
         }
-        // always create a new node for the outer
-        let outer_idx = self.new_node(outer);
 
-        // add link
-        for node in self.object_arena.iter_mut() {
-            if node.name == inner {
-                // Found match, create links
-                node.parents.push(outer_idx);
-                self.object_arena[outer_idx].orbits = Some(node.idx);
-                break;
-            }
-        }
+        // set parents
+        self.object_arena[inner].parents.push(outer);
     }
     fn direct_orbits(&self) -> usize {
         // count successful traversals
@@ -81,11 +81,11 @@ impl OrbitSystem {
     fn indirect_orbits(&self) -> usize {
         // Sum all hops, subtract one for the direct hop if any found
         self.object_arena.iter().fold(0, |acc, o| {
-            let result = acc + self.hops_to_root(o.idx);
+            let result = self.hops_to_root(o.idx);
             if result > 0 {
-                result - 1
+                acc + result - 1
             } else {
-                result
+                acc + result
             }
         })
     }
@@ -139,5 +139,14 @@ mod test {
                 .indirect_orbits(),
             31
         );
+    }
+    #[test]
+    fn test_solutions() {
+        assert_eq!(
+            OrbitSystem::from_str(&get_puzzle_string(6).unwrap())
+                .unwrap()
+                .num_orbits(),
+            142497
+        )
     }
 }
