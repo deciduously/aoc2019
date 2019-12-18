@@ -98,14 +98,19 @@ impl OrbitSystem {
             None => 0,
         }
     }
-    fn hops_to_target_parent(&self, idx: usize, target: &str) -> Vec<usize> {
-        let mut results = vec![];
+    fn hops_to_target_parent(&self, idx: usize, target: &str) -> Option<usize> {
+        // are we here?  If so, Some(0)
+        // If not,try all parents.
+        // If it cant be found, return None
+        if target == self.object_arena[idx].name {
+            return Some(0);
+        }
         for p in &self.object_arena[idx].parents {
-            for res in self.hops_to_target_parent(*p, target) {
-                results.push(res);
+            if let Some(x) = self.hops_to_target_parent(*p, target) {
+                return Some(1 + x);
             }
         }
-        results
+        None
     }
     fn minimal_orbit_distance(&mut self, from: &str, target: &str) -> Option<usize> {
         // If it's not in the tree, this will add a new unconnected node
