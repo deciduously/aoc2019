@@ -123,7 +123,7 @@ impl OrbitSystem {
         // Explore all parents, then hop up one
         while let Some(inner) = trav.orbits {
             for res in self.hops_to_target_parent(inner, target) {
-                results.push(res);
+                results.push(1 + res);
             }
             trav = &self.object_arena[inner];
         }
