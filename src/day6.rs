@@ -112,32 +112,33 @@ impl OrbitSystem {
         }
         None
     }
-    fn minimal_orbit_distance(&mut self, from: &str, target: &str) -> Option<usize> {
+    fn minimal_orbit_distance(&mut self, from: &str, target: &str) -> usize {
         // If it's not in the tree, this will add a new unconnected node
         // the final function will still return None
         let start_node = self.node(from);
-        let mut results = vec![];
+        let mut ret = 0;
 
         // Start traversal
         let mut trav = &self.object_arena[start_node];
         // Explore all parents, then hop up one
         while let Some(inner) = trav.orbits {
-            for res in self.hops_to_target_parent(inner, target) {
-                results.push(1 + res);
+            if let Some(x) =  self.hops_to_target_parent(inner, target) {
+                ret += x;
+                println!("inner: {}", inner);
+                break;
             }
             trav = &self.object_arena[inner];
+            ret += 1;
         }
-        results.iter().fold(None, |acc, res| match acc {
-            Some(x) => Some(x.min(*res)),
-            None => Some(*res),
-        })
+        // don't go all the way to target, just orbit
+        ret - 1
     }
 }
 
 pub fn run() {
     let mut system = OrbitSystem::from_str(&get_puzzle_string(6).unwrap()).unwrap();
     println!(
-        "{}\n{:?}",
+        "{}\n{}",
         system.num_orbits(),
         system.minimal_orbit_distance("YOU", "SAN")
     );
@@ -182,16 +183,18 @@ mod test {
             )
             .unwrap()
             .minimal_orbit_distance("YOU", "SAN"),
-            Some(4)
+            4
         );
     }
     #[test]
     fn test_solutions() {
+        let mut system = OrbitSystem::from_str(&get_puzzle_string(6).unwrap())
+        .unwrap();
         assert_eq!(
-            OrbitSystem::from_str(&get_puzzle_string(6).unwrap())
-                .unwrap()
-                .num_orbits(),
+            
+                system.num_orbits(),
             142497
-        )
+        );
+        assert_eq!(system.minimal_orbit_distance("YOU", "SAN"), 301);
     }
 }
