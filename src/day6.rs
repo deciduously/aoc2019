@@ -1,34 +1,22 @@
-use std::{io, str::FromStr};
 use super::get_puzzle_string;
-
-/*
-pub struct Node<T> {
-    parent: Option<NodeId>,
-    previous_sibling: Option<NodeId>,
-    next_sibling: Option<NodeId>,
-    first_child: Option<NodeId>,
-    last_child: Option<NodeId>,
-
-    /// The actual data which will be stored within the tree
-    pub data: T,
-}
-
-pub struct NodeId {
-    index: usize,
-}
-*/
+use std::{io, str::FromStr};
 
 #[derive(Debug, Clone)]
 struct OrbitObject {
     idx: usize,
     name: String,
-    parent: Option<usize>,
-    child: Option<usize>,
+    orbits: Option<usize>,
+    parents: Vec<usize>,
 }
 
 impl OrbitObject {
     fn new(idx: usize, name: &str) -> Self {
-        Self { idx, name: name.into(), parent: None, child: None }
+        Self {
+            idx,
+            name: name.into(),
+            orbits: None,
+            parents: vec![],
+        }
     }
 }
 
@@ -48,6 +36,7 @@ impl FromStr for OrbitSystem {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ret = Self::default();
         let _ = s.split('\n').for_each(|o| ret.insert(o));
+        println!("{:?}", ret);
         Ok(ret)
     }
 }
@@ -58,37 +47,66 @@ impl OrbitSystem {
         self.object_arena.push(OrbitObject::new(idx, name));
         idx
     }
-    fn set_parent(&mut self, idx: usize, parent: usize) {
-        self.object_arena[idx].parent = Some(parent);
-        // TODO also update child
-    }
-    fn insert_child(&mut self, idx: usize) {
-        let child = self.object_arena[idx].name.clone();
-        for node in self.object_arena.iter_mut() {
-            if node.name == child {
-                node.parent = Some(idx);
-            }
-        }
-    }
     fn insert(&mut self, orbit: &str) {
         // Init nodes
         let split = orbit.split(')').collect::<Vec<&str>>();
-        let parent = self.new_node(split[1]);
-        let child = self.new_node(split[0]);
+        let outer = split[1];
+        let inner = split[0];
 
-       // set child's parent
-       self.set_parent(child, parent);
+        if self.object_arena.is_empty() {
+            // Root node
+            self.new_node(inner);
+        }
+        // always create a new node for the outer
+        let outer_idx = self.new_node(outer);
 
-       // attempt to set child's ancestor
-       self.insert_child(child);
+        // add link
+        for node in self.object_arena.iter_mut() {
+            if node.name == inner {
+                // Found match, create links
+                node.parents.push(outer_idx);
+                self.object_arena[outer_idx].orbits = Some(node.idx);
+                break;
+            }
+        }
+    }
+    fn direct_orbits(&self) -> usize {
+        // count successful traversals
+        let mut ret = 0;
+        for obj in &self.object_arena {
+            ret += obj.parents.len();
+        }
+        ret
+    }
+    fn indirect_orbits(&self) -> usize {
+        // Sum all hops, subtract one for the direct hop if any found
+        self.object_arena.iter().fold(0, |acc, o| {
+            let result = acc + self.hops_to_root(o.idx);
+            if result > 0 {
+                result - 1
+            } else {
+                result
+            }
+        })
     }
     fn num_orbits(&self) -> usize {
-        self.object_arena.len()
+        self.direct_orbits() + self.indirect_orbits()
+    }
+    fn hops_to_root(&self, idx: usize) -> usize {
+        match self.object_arena[idx].orbits {
+            Some(id) => 1 + self.hops_to_root(id),
+            None => 0,
+        }
     }
 }
 
 pub fn run() {
-    println!("{}", OrbitSystem::from_str(&get_puzzle_string(6).unwrap()).unwrap().num_orbits());
+    println!(
+        "{}",
+        OrbitSystem::from_str(&get_puzzle_string(6).unwrap())
+            .unwrap()
+            .num_orbits()
+    );
 }
 
 #[cfg(test)]
@@ -97,6 +115,29 @@ mod test {
     use pretty_assertions::assert_eq;
     #[test]
     fn test_sample() {
-        assert_eq!(OrbitSystem::from_str("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L").unwrap().num_orbits(), 42);
+        assert_eq!(
+            OrbitSystem::from_str("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L")
+                .unwrap()
+                .num_orbits(),
+            42
+        );
+    }
+    #[test]
+    fn test_direct() {
+        assert_eq!(
+            OrbitSystem::from_str("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L")
+                .unwrap()
+                .direct_orbits(),
+            11
+        );
+    }
+    #[test]
+    fn test_indirect() {
+        assert_eq!(
+            OrbitSystem::from_str("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L")
+                .unwrap()
+                .indirect_orbits(),
+            31
+        );
     }
 }
