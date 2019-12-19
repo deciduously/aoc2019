@@ -1,7 +1,7 @@
 use aoc2019::*;
 use std::env::args;
 
-const DAYS_IMPLEMENTED: u32 = 6;
+const DAYS_IMPLEMENTED: u32 = 7;
 
 fn main() {
     if let Some(day) = args().nth(1) {
@@ -15,6 +15,7 @@ fn main() {
                     4 => day4::run(),
                     5 => day5::run(),
                     6 => day6::run(),
+                    7 => day7::run(),
                     _ => unreachable!(),
                 }
             } else {
