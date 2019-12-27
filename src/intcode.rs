@@ -3,6 +3,7 @@ use std::{
     io::{self, ErrorKind::*, Read, Write},
 };
 pub type Int = isize;
+const INT_SIZE: usize = std::mem::size_of::<Int>();
 
 const MAX_INPUT: Int = 99;
 
@@ -118,6 +119,7 @@ impl Default for IntcodeComputer {
             current_mode: ParameterMode::default(),
             program: String::default(),
             tape: Vec::default(),
+            // Maybe just store a Vec<Int>??
             input_stream: Box::new(io::stdin()),
             output_stream: Box::new(io::stdout()),
         }
@@ -129,8 +131,18 @@ impl IntcodeComputer {
         let mut ret = Self::default();
         ret.program = input.to_string();
         ret.init_tape();
+        // If pre-defined inputs were passed, convert to byte stream
         if !user_inputs.is_empty() {
-            ret.input_stream = Box::new(user_inputs);
+            let mut stream = vec![];
+            for i in user_inputs {
+                let bytes = i.to_ne_bytes();
+                for b in &bytes {
+                    stream.push(*b);
+                }
+            }
+            let mut input_stream = vec![];
+            input_stream.copy_from_slice(stream.as_slice());
+            ret.input_stream = Box::new(input_stream.as_slice());
         }
         ret
     }
@@ -157,22 +169,21 @@ impl IntcodeComputer {
                     self.set_value_at(dest as usize, lhs * rhs);
                 }
                 Input => {
-                    // If there are some left, use those, otherwise prompt
-                    let dest = if self.user_inputs.is_empty() {
-                        print!("Enter value> ");
-                        io::stdout().flush()?;
-                        let mut input = String::new();
-                        io::stdin().read_line(&mut input)?;
-                        input.trim().parse::<Int>().expect("Could not parse input")
-                    } else {
-                        self.user_inputs.pop().unwrap()
-                    };
+                    // If there are some left, use those, otherwise wait for stdin
+                    print!("Enter value> ");
+                    self.output_stream.flush()?;
+                    // Read exactly one 8-byte number
+                    let mut dest_buffer: [u8; INT_SIZE] = [0; INT_SIZE];
+                    self.input_stream
+                        .read_exact(&mut dest_buffer)
+                        .expect("Unable to read destination from input stream");
                     self.set_value_at(
                         opcode.parameters[0].value as usize, // TODO destinations are weird, see line 124
-                        dest,
+                        Int::from_ne_bytes(dest_buffer),
                     );
                 }
                 Output => {
+                    // TODO use self.output_stream
                     println!("{}", self.read_parameter(opcode.parameters[0]));
                     io::stdout().flush()?;
                 }
@@ -293,7 +304,7 @@ impl fmt::Display for IntcodeComputer {
     }
 }
 
-pub fn intcode(input: &str, buggy: bool, user_inputs: Vec<&str>) -> (Int, String) {
+pub fn intcode(input: &str, buggy: bool, user_inputs: &[Int]) -> (Int, String) {
     let mut computer = IntcodeComputer::new(input, user_inputs);
     if buggy {
         computer.fix_1202bug();
@@ -309,24 +320,21 @@ mod test {
 
     #[test]
     fn test_v0_day2() {
-        assert_eq!(intcode("1,0,0,0,99", false, vec![]).1, "2,0,0,0,99");
-        assert_eq!(intcode("2,3,0,3,99", false, vec![]).1, "2,3,0,6,99");
-        assert_eq!(intcode("2,4,4,5,99,0", false, vec![]).1, "2,4,4,5,99,9801");
+        assert_eq!(intcode("1,0,0,0,99", false, &[]).1, "2,0,0,0,99");
+        assert_eq!(intcode("2,3,0,3,99", false, &[]).1, "2,3,0,6,99");
+        assert_eq!(intcode("2,4,4,5,99,0", false, &[]).1, "2,4,4,5,99,9801");
         assert_eq!(
-            intcode("1,1,1,4,99,5,6,0,99", false, vec![]).1,
+            intcode("1,1,1,4,99,5,6,0,99", false, &[]).1,
             "30,1,1,4,2,5,6,0,99"
         );
         assert_eq!(
-            intcode("1,9,10,3,2,3,11,0,99,30,40,50", false, vec![]).1,
+            intcode("1,9,10,3,2,3,11,0,99,30,40,50", false, &[]).1,
             "3500,9,10,70,2,3,11,0,99,30,40,50"
         );
     }
     #[test]
     fn test_v1_day5() {
-        assert_eq!(intcode("1002,4,3,4,33", false, vec![]).1, "1002,4,3,4,99");
-        assert_eq!(
-            intcode("1101,100,-1,4,0", false, vec![]).1,
-            "1101,100,-1,4,99"
-        );
+        assert_eq!(intcode("1002,4,3,4,33", false, &[]).1, "1002,4,3,4,99");
+        assert_eq!(intcode("1101,100,-1,4,0", false, &[]).1, "1101,100,-1,4,99");
     }
 }

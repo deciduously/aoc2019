@@ -2,7 +2,7 @@ use crate::*;
 
 pub fn run() {
     //intcode::intcode(&get_puzzle_string(5).unwrap(), false, vec![]);
-    intcode::intcode("3,9,8,9,10,9,4,9,99,-1,8", false, vec![]);
+    intcode::intcode("3,9,8,9,10,9,4,9,99,-1,8", false, &[]);
 }
 
 #[cfg(test)]
@@ -19,14 +19,14 @@ mod test {
     const JUMP_3: &str = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
     #[test]
     fn test_compare() {
-        assert_eq!(intcode(CMP_8_1, false, vec!["6"]).0, 0);
-        assert_eq!(intcode(CMP_8_1, false, vec!["8"]).0, 1);
-        assert_eq!(intcode(CMP_8_2, false, vec!["6"]).0, 0);
-        assert_eq!(intcode(CMP_8_2, false, vec!["8"]).0, 1);
-        assert_eq!(intcode(CMP_8_3, false, vec!["6"]).0, 0);
-        assert_eq!(intcode(CMP_8_3, false, vec!["8"]).0, 1);
-        assert_eq!(intcode(CMP_8_4, false, vec!["6"]).0, 0);
-        assert_eq!(intcode(CMP_8_4, false, vec!["8"]).0, 1);
+        assert_eq!(intcode(CMP_8_1, false, &[6]).0, 0);
+        assert_eq!(intcode(CMP_8_1, false, &[8]).0, 1);
+        assert_eq!(intcode(CMP_8_2, false, &[6]).0, 0);
+        assert_eq!(intcode(CMP_8_2, false, &[8]).0, 1);
+        assert_eq!(intcode(CMP_8_3, false, &[6]).0, 0);
+        assert_eq!(intcode(CMP_8_3, false, &[8]).0, 1);
+        assert_eq!(intcode(CMP_8_4, false, &[6]).0, 0);
+        assert_eq!(intcode(CMP_8_4, false, &[8]).0, 1);
     }
     #[test]
     fn test_jump() {}
