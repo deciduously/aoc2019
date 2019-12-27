@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    io::{self, ErrorKind::*, Write},
+    io::{self, ErrorKind::*, Read, Write},
 };
 pub type Int = isize;
 
@@ -102,19 +102,36 @@ impl Opcode {
     }
 }
 
-#[derive(Debug, Default)]
 pub struct IntcodeComputer {
     current_idx: usize,
     current_mode: ParameterMode,
     program: String,
     tape: Vec<Int>,
+    input_stream: Box<dyn Read>,
+    output_stream: Box<dyn Write>,
+}
+
+impl Default for IntcodeComputer {
+    fn default() -> Self {
+        Self {
+            current_idx: usize::default(),
+            current_mode: ParameterMode::default(),
+            program: String::default(),
+            tape: Vec::default(),
+            input_stream: Box::new(io::stdin()),
+            output_stream: Box::new(io::stdout()),
+        }
+    }
 }
 
 impl IntcodeComputer {
-    pub fn new(input: &str) -> Self {
+    pub fn new(input: &str, user_inputs: &[Int]) -> Self {
         let mut ret = Self::default();
         ret.program = input.to_string();
         ret.init_tape();
+        if !user_inputs.is_empty() {
+            ret.input_stream = Box::new(user_inputs);
+        }
         ret
     }
     pub fn fix_1202bug(&mut self) {
@@ -140,11 +157,16 @@ impl IntcodeComputer {
                     self.set_value_at(dest as usize, lhs * rhs);
                 }
                 Input => {
-                    print!("Enter value> ");
-                    io::stdout().flush()?;
-                    let mut input = String::new();
-                    io::stdin().read_line(&mut input)?;
-                    let dest = input.trim().parse::<Int>().expect("Could not parse input");
+                    // If there are some left, use those, otherwise prompt
+                    let dest = if self.user_inputs.is_empty() {
+                        print!("Enter value> ");
+                        io::stdout().flush()?;
+                        let mut input = String::new();
+                        io::stdin().read_line(&mut input)?;
+                        input.trim().parse::<Int>().expect("Could not parse input")
+                    } else {
+                        self.user_inputs.pop().unwrap()
+                    };
                     self.set_value_at(
                         opcode.parameters[0].value as usize, // TODO destinations are weird, see line 124
                         dest,
@@ -271,8 +293,8 @@ impl fmt::Display for IntcodeComputer {
     }
 }
 
-pub fn intcode(input: &str, buggy: bool) -> (Int, String) {
-    let mut computer = IntcodeComputer::new(input);
+pub fn intcode(input: &str, buggy: bool, user_inputs: Vec<&str>) -> (Int, String) {
+    let mut computer = IntcodeComputer::new(input, user_inputs);
     if buggy {
         computer.fix_1202bug();
     }
@@ -287,21 +309,24 @@ mod test {
 
     #[test]
     fn test_v0_day2() {
-        assert_eq!(intcode("1,0,0,0,99", false).1, "2,0,0,0,99");
-        assert_eq!(intcode("2,3,0,3,99", false).1, "2,3,0,6,99");
-        assert_eq!(intcode("2,4,4,5,99,0", false).1, "2,4,4,5,99,9801");
+        assert_eq!(intcode("1,0,0,0,99", false, vec![]).1, "2,0,0,0,99");
+        assert_eq!(intcode("2,3,0,3,99", false, vec![]).1, "2,3,0,6,99");
+        assert_eq!(intcode("2,4,4,5,99,0", false, vec![]).1, "2,4,4,5,99,9801");
         assert_eq!(
-            intcode("1,1,1,4,99,5,6,0,99", false).1,
+            intcode("1,1,1,4,99,5,6,0,99", false, vec![]).1,
             "30,1,1,4,2,5,6,0,99"
         );
         assert_eq!(
-            intcode("1,9,10,3,2,3,11,0,99,30,40,50", false).1,
+            intcode("1,9,10,3,2,3,11,0,99,30,40,50", false, vec![]).1,
             "3500,9,10,70,2,3,11,0,99,30,40,50"
         );
     }
     #[test]
     fn test_v1_day5() {
-        assert_eq!(intcode("1002,4,3,4,33", false).1, "1002,4,3,4,99");
-        assert_eq!(intcode("1101,100,-1,4,0", false).1, "1101,100,-1,4,99");
+        assert_eq!(intcode("1002,4,3,4,33", false, vec![]).1, "1002,4,3,4,99");
+        assert_eq!(
+            intcode("1101,100,-1,4,0", false, vec![]).1,
+            "1101,100,-1,4,99"
+        );
     }
 }
